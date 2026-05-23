@@ -1,23 +1,23 @@
 /**
- * @param src a snippet text copy from excel
- * @requires src cannot include "
- * @requires src a table fully filled out, only allowed single-column merging
+ * 
+ * @param html_src html src, contains one table and each cell is text
  * @returns array[row][column]
  */
-function matrix(src,
-    err_illegal_char = `text copy from excel cannot include "`,
-    err_illegal_table = `the src table should be fully filled out, only allowed single-column merging`,
-    err_illegal_result = `the return value is not matrix`){
-    
+function matrix(html_src,
+    err_not_table = "please copy the table",
+    err_not_matrix = "the return value is not matrix"){
+
     let alert_throw = (e) => {
         alert(e);
         throw new Error(e);
     };
 
-    if(src.match(/"/gv) === null){
+    html_src = html_src.match(/(?<=<tbody>)[\s\S]+(?=<\/tbody>)/gv)?.[0];
+    if(html_src !== undefined){
         let mat = [];
         let x = 0;
         let y = 0;
+        let parser = new DOMParser();
 
         let view = (x,y,new_val = undefined) => {
             if(x >= 0 && y >= 0){
@@ -34,34 +34,27 @@ function matrix(src,
             }
         };
 
-        let auto_complete = (xt,yt) => {
-            if(view(x,y) !== undefined){
-                //no need auto complete4
-                x = xt;
-                y = yt;
-            }else if(view(x - 1, y) !== undefined){
-               view(x,y,view(x - 1, y)); //copy from same column, previous line
-                x = xt;
-                y = yt;
-            }else{
-                alert_throw(err_illegal_table);
-            }
-        };
+        let fill = ({style,content}) => {
+            let dx = Number.parseInt(style.match(/(?<=rowspan\s*=\s*")\d+?(?=")/gv)?.[0] ?? "1") - 1;
+            let dy = Number.parseInt(style.match(/(?<=colspan\s*=\s*")\d+?(?=")/gv)?.[0] ?? "1") - 1;
+            content = parser.parseFromString(content,"text/html").documentElement.textContent;
 
-        for(let t of src.match(/[^\t\n]+|\t|\n/gv)){
-            switch(t){
-                case `\t`:
-                    auto_complete(x, y + 1);
-                    break;
-                case `\n`:
-                    auto_complete(x + 1,0);
-                    break;
-                default:
-                    view(x,y,t);
+            for(;view(x,y) !== undefined; y = y + 1){}
+
+            for(let X = x; X <= x + dx; X = X + 1){
+                for(let Y = y; Y <= y + dy; Y = Y + 1){
+                    view(X,Y,content);
+                }
             }
         }
+        for(let row of html_src.match(/(?<=<tr[^>]*?>)[\s\S]+?(?=<\/tr>)/gv)){
+            for(let {groups: cell} of row.matchAll(/(?<=<td(?<style>[^>]*?)>)(?<content>[\s\S]+?)(?=<\/td>)/gv)){
+                fill(cell);
+            }
+            x = x + 1;
+            y = 0;
+        }
 
-        //check if mat is a matrix
         if(
             mat.length > 0 &&
             mat.every(row => 
@@ -72,9 +65,10 @@ function matrix(src,
             return mat;
         }else{
             //not matrix
-            alert_throw(err_illegal_result);
+            alert_throw(err_not_matrix);
         }
     }else{
-        alert_throw(err_illegal_char);
+        alert_throw(err_not_table);
     }
+
 }
