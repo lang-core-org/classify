@@ -3,15 +3,15 @@
  */
 function focus_selector(){
     let e = document.activeElement;
-    if(e === document.body){
+    if( e === null || e === document.body ){
         return ``;
     }else{
         let selector = ``;
-        for(;e != document.body; e = e.parentNode){
+        for(;e != document.documentElement; e = e.parentNode){
             selector = `> :nth-child(${
                 [...e.parentNode.children].indexOf(e) + 1
             }) ${selector}`;
         }
-        return `body ${selector}`;
+        return `html ${selector}`;
     }
 }
